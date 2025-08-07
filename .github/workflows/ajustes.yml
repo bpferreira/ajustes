@@ -2,53 +2,35 @@ name: Ajustes Diário
 
 on:
   schedule:
-    - cron: "30 8 * * 1-5"  # Executa às 05:30 BRT (08:30 UTC), dias úteis
-  workflow_dispatch:         # Permite execução manual via botão
+    - cron: "30 8 * * 1-5"  # 05:30 BRT (08:30 UTC) dias úteis
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   baixar-ajustes:
     runs-on: ubuntu-latest
     container:
-      image: bpferreira/ajustes:v1  # Imagem Docker com R e pacotes
+      image: bpferreira/ajustes:v1
 
     steps:
-      - name: Checkout do repositório (forçar versão mais recente)
+      - name: Checkout do repositório
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0  # Força fetch completo para evitar cache
 
-      - name: Verificar versão do workflow
+      # <<< Passo CRÍTICO: rodar git config FORA do repo >>>
+      - name: Configurar Git (safe.directory + identidade)
         run: |
-          echo "🔍 Verificando versão atual do workflow..."
-          echo "📅 Data/hora atual: $(date)"
-          echo "📋 Último commit: $(git log -1 --oneline)"
-          echo "📁 Conteúdo do workflow:"
-          cat .github/workflows/ajustes.yml | head -20
-
-      - name: Configurar Git para GitHub Actions
-        env:
-          GIT_SAFE_DIRECTORY: /_w/ajustes/ajustes
-        run: |
-          echo "🔧 Configurando Git para resolver 'dubious ownership'..."
-          echo "📁 Diretório atual: $(pwd)"
-          echo "🔒 Configurando safe.directory via variável de ambiente..."
-          
-          # Estratégia 1: Variável de ambiente
-          export GIT_SAFE_DIRECTORY="/_w/ajustes/ajustes:/github/workspace:."
-          
-          # Estratégia 2: Configuração global ANTES de qualquer comando Git
-          git config --global --add safe.directory /_w/ajustes/ajustes
-          git config --global --add safe.directory /github/workspace
-          git config --global --add safe.directory /__w/ajustes/ajustes
-          git config --global --add safe.directory .
-          git config --global --add safe.directory /_w/ajustes
-          
-          # Estratégia 3: Configurar usuário APÓS safe.directory
-          git config --global user.name "GitHub Action"
+          echo "🔧 Configurando Git (fora do repositório) ..."
+          pushd / >/dev/null
+          git config --global --add safe.directory '*'
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global user.name  "GitHub Action"
           git config --global user.email "action@github.com"
-          
-          echo "✅ Git configurado com múltiplas estratégias de segurança"
+          popd >/dev/null
+          echo "✅ Git configurado"
 
       - name: Verificar estrutura inicial
         run: |
@@ -86,12 +68,17 @@ jobs:
           echo "📁 Conteúdo de data/ajustes/anbima/:"
           ls -la data/ajustes/anbima/ || echo "Pasta data/ajustes/anbima/ não existe"
 
+      - name: Pull com rebase (evitar conflitos)
+        run: |
+          git pull --rebase || true
+
       - name: Commit e push dos arquivos atualizados
-        env:
-          GIT_SAFE_DIRECTORY: /_w/ajustes/ajustes
         run: |
           echo "📝 Preparando commit..."
-          git add .
+          # Reforço do safe.directory (idempotente) — agora já dentro do repo
+          git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
+
+          git add -A
           git status
           git commit -m "Atualizar dados de ajustes - $(date '+%Y-%m-%d')" || echo "Nenhuma mudança para commit"
           git push || echo "Nenhuma mudança para push"
