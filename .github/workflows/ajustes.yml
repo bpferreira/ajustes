@@ -5,6 +5,9 @@ on:
     - cron: "30 8 * * 1-5"  # Executa às 05:30 BRT (08:30 UTC), dias úteis
   workflow_dispatch:         # Permite execução manual via botão
 
+permissions:
+  contents: write
+
 jobs:
   baixar-ajustes:
     runs-on: ubuntu-latest
@@ -17,17 +20,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configurar Git para GitHub Actions
+      - name: Configurar Git (safe.directory + user)
         run: |
           echo "🔧 Configurando Git para resolver 'dubious ownership'..."
-          # ADICIONAR SAFE.DIRECTORY ANTES DE QUALQUER OUTRA CONFIGURAÇÃO GIT
-          git config --global --add safe.directory /_w/ajustes/ajustes
-          git config --global --add safe.directory /github/workspace
-          git config --global --add safe.directory /__w/ajustes/ajustes
-          git config --global --add safe.directory .
-          
-          # AGORA CONFIGURAR USER.NAME E USER.EMAIL
-          git config --global user.name "GitHub Action"
+          git config --global  --add safe.directory "$GITHUB_WORKSPACE" || true
+          git config --system  --add safe.directory "$GITHUB_WORKSPACE" || true
+          git config --global user.name  "GitHub Action"
           git config --global user.email "action@github.com"
           echo "✅ Git configurado com safe.directory"
 
@@ -66,6 +64,10 @@ jobs:
           ls -la data/ajustes/b3/ || echo "Pasta data/ajustes/b3/ não existe"
           echo "📁 Conteúdo de data/ajustes/anbima/:"
           ls -la data/ajustes/anbima/ || echo "Pasta data/ajustes/anbima/ não existe"
+
+      - name: Pull com rebase (evitar conflitos)
+        run: |
+          git pull --rebase || true
 
       - name: Commit e push dos arquivos atualizados
         run: |
