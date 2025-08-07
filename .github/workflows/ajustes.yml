@@ -12,10 +12,19 @@ jobs:
       image: bpferreira/ajustes:v1  # Imagem Docker com R e pacotes
 
     steps:
-      - name: Checkout do repositório
+      - name: Checkout do repositório (forçar versão mais recente)
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Força fetch completo para evitar cache
+
+      - name: Verificar versão do workflow
+        run: |
+          echo "🔍 Verificando versão atual do workflow..."
+          echo "📅 Data/hora atual: $(date)"
+          echo "📋 Último commit: $(git log -1 --oneline)"
+          echo "📁 Conteúdo do workflow:"
+          cat .github/workflows/ajustes.yml | head -20
 
       - name: Configurar Git para GitHub Actions
         env:
