@@ -24,7 +24,7 @@ Automação diária para download de dados públicos da ANBIMA e B3, com organiz
 │   └── ajustes/
 │       ├── anbima/
 │       │   ├── anbima_raw.xls
-│       │   └── tesouro_prefixado.csv
+│       │   └── 2025-08-07_LTN.csv
 │       └── b3/
 │           ├── 2025-08-07_DI1.csv
 │           └── 2025-08-07_DAP.csv

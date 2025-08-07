@@ -17,8 +17,9 @@ library(purrr)
 baixar_ajustes_b3 <- function(produto) {
   url <- "https://www2.bmf.com.br/pages/portal/bmfbovespa/lumis/lum-ajustes-do-pregao-ptBR.asp"
   data_str <- format(Sys.Date(), "%Y-%m-%d")
-  dir.create("data/ajustes/b3", recursive = TRUE, showWarnings = FALSE)
-  caminho_saida <- file.path("data/ajustes/b3", paste0(data_str, "_", produto, ".csv"))
+  dir_out <- "data/ajustes/b3"
+  dir.create(dir_out, recursive = TRUE, showWarnings = FALSE)
+  caminho_saida <- file.path(dir_out, paste0(data_str, "_", produto, ".csv"))
 
   tryCatch({
     cat("📥 Acessando:", url, "\n")
@@ -65,3 +66,15 @@ baixar_ajustes_b3 <- function(produto) {
 # Rodar para múltiplos produtos
 produtos <- c("DI1", "DAP")
 walk(produtos, baixar_ajustes_b3)
+
+# 🔁 Limpeza local de arquivos antigos (>5 dias)
+arquivos_antigos <- list.files("data/ajustes/b3", pattern = "\\.csv$", full.names = TRUE)
+limite <- Sys.Date() - 5
+
+for (arq in arquivos_antigos) {
+  data_arq <- as.Date(sub("_.*", "", basename(arq)))
+  if (!is.na(data_arq) && data_arq < limite) {
+    file.remove(arq)
+    cat("🧹 Removido arquivo antigo:", basename(arq), "\n")
+  }
+}

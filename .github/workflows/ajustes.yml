@@ -2,14 +2,15 @@ name: Ajustes Diário
 
 on:
   schedule:
-    - cron: "30 8 * * 1-5"  # Executa às 05:30 BRT (08:30 UTC), de segunda a sexta
-  workflow_dispatch:
+    - cron: "30 8 * * 1-5"  # Executa às 05:30 BRT (08:30 UTC), dias úteis
+  workflow_dispatch:         # Permite execução manual via botão
 
 jobs:
-  baixar-b3:
+  baixar-ajustes:
     runs-on: ubuntu-latest
     container:
-      image: bpferreira/ajustes:v1
+      image: bpferreira/ajustes:v1  # Imagem Docker com R e pacotes
+
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v4
@@ -22,14 +23,6 @@ jobs:
             sleep 5
           done
 
-  baixar-anbima:
-    runs-on: ubuntu-latest
-    container:
-      image: bpferreira/ajustes:v1
-    steps:
-      - name: Checkout do repositório
-        uses: actions/checkout@v4
-
       - name: Rodar baixar_anbima.R com retry
         run: |
           for i in {1..10}; do
@@ -37,3 +30,19 @@ jobs:
             Rscript R/baixar_anbima.R && break
             sleep 5
           done
+
+      - name: Limpar arquivos antigos (+5 dias)
+        run: |
+          echo "🧹 Limpando arquivos com mais de 5 dias..."
+          find data/ajustes/b3 -name "*.csv" -type f -mtime +5 -print -delete
+          find data/ajustes/anbima -name "*.csv" -type f -mtime +5 -print -delete
+
+      - name: Commit e push dos arquivos atualizados
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add data/
+          git diff --cached --quiet || git commit -m "Atualização diária - $(date +'%Y-%m-%d')"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
