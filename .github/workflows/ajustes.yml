@@ -15,6 +15,12 @@ jobs:
       - name: Checkout do repositório
         uses: actions/checkout@v4
 
+      - name: Configurar Git para GitHub Actions
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git config --global --add safe.directory /_w/ajustes/ajustes
+
       - name: Verificar estrutura inicial
         run: |
           echo "📁 Estrutura inicial:"
@@ -29,67 +35,32 @@ jobs:
           echo "🔍 Executando diagnóstico completo..."
           Rscript R/diagnostico_completo.R
 
-      - name: Testar criação de diretórios
+      - name: Rodar baixar_b3.R
         run: |
-          echo "🧪 Testando criação de diretórios..."
-          Rscript R/teste_diretorios.R
+          echo "📊 Executando baixar_b3.R..."
+          Rscript R/baixar_b3.R
+          echo "✅ baixar_b3.R concluído"
 
-      - name: Rodar baixar_b3.R com retry
+      - name: Rodar baixar_anbima.R
         run: |
-          for i in {1..10}; do
-            echo "Tentativa $i para baixar B3..."
-            Rscript R/baixar_b3.R && break
-            sleep 5
-          done
+          echo "📊 Executando baixar_anbima.R..."
+          Rscript R/baixar_anbima.R
+          echo "✅ baixar_anbima.R concluído"
 
-      - name: Verificar arquivos B3 após download
+      - name: Verificar arquivos gerados
         run: |
-          echo "📁 Arquivos B3 após download:"
-          ls -la data/ajustes/b3/ || echo "Pasta B3 não existe"
-          echo "📁 Conteúdo detalhado:"
-          find data/ajustes/b3 -type f -exec ls -la {} \; 2>/dev/null || echo "Nenhum arquivo encontrado"
-
-      - name: Rodar baixar_anbima.R com retry
-        run: |
-          for i in {1..10}; do
-            echo "Tentativa $i para baixar ANBIMA..."
-            Rscript R/baixar_anbima.R && break
-            sleep 5
-          done
-
-      - name: Verificar arquivos ANBIMA após download
-        run: |
-          echo "📁 Arquivos ANBIMA após download:"
-          ls -la data/ajustes/anbima/ || echo "Pasta ANBIMA não existe"
-          echo "📁 Conteúdo detalhado:"
-          find data/ajustes/anbima -type f -exec ls -la {} \; 2>/dev/null || echo "Nenhum arquivo encontrado"
-
-      - name: Limpar arquivos antigos (+5 dias)
-        run: |
-          echo "🧹 Limpando arquivos com mais de 5 dias..."
-          find data/ajustes/b3 -name "*.csv" -type f -mtime +5 -print -delete
-          find data/ajustes/anbima -name "*.csv" -type f -mtime +5 -print -delete
-
-      - name: Verificar arquivos finais
-        run: |
-          echo "📁 Estrutura final dos dados:"
-          find data/ajustes -type f -name "*.csv" -exec ls -la {} \;
-          echo "📁 Status do git:"
-          git status
+          echo "📁 Verificando arquivos gerados:"
+          echo "📁 Conteúdo de data/ajustes/:"
+          ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
+          echo "📁 Conteúdo de data/ajustes/b3/:"
+          ls -la data/ajustes/b3/ || echo "Pasta data/ajustes/b3/ não existe"
+          echo "📁 Conteúdo de data/ajustes/anbima/:"
+          ls -la data/ajustes/anbima/ || echo "Pasta data/ajustes/anbima/ não existe"
 
       - name: Commit e push dos arquivos atualizados
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          echo "📝 Status do git antes do add:"
+          echo "📝 Preparando commit..."
+          git add .
           git status
-          echo "📝 Adicionando arquivos..."
-          git add data/
-          echo "📝 Status do git após add:"
-          git status
-          echo "📝 Fazendo commit..."
-          git commit -m "Atualização diária - $(date +'%Y-%m-%d')" || echo "Sem mudanças para commitar"
-          echo "📝 Fazendo push..."
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git commit -m "Atualizar dados de ajustes - $(date '+%Y-%m-%d')" || echo "Nenhuma mudança para commit"
+          git push || echo "Nenhuma mudança para push"
