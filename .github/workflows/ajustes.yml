@@ -9,15 +9,15 @@ jobs:
   baixar-b3:
     runs-on: ubuntu-latest
     container:
-      image: bpferreira/ajustes:latest  # Usa imagem Docker personalizada do Docker Hub
+      image: bpferreira/ajustes:latest
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v4
 
-      - name: Rodar baixar_b3.R com retry
+      - name: Rodar baixar_b3.R com retry ate 10 vezes
         run: |
           for i in {1..10}; do
-            echo "Tentativa {$i} para baixar B3..."
+            echo "Tentativa $i para baixar B3..."
             Rscript R/baixar_b3.R && break
             sleep 5
           done
@@ -30,10 +30,10 @@ jobs:
       - name: Checkout do repositório
         uses: actions/checkout@v4
 
-      - name: Rodar baixar_anbima.R com retry
+      - name: Rodar baixar_anbima.R com retry ate 10 vezes
         run: |
           for i in {1..10}; do
-            echo "Tentativa {$i} para baixar ANBIMA..."
+            echo "Tentativa $i para baixar ANBIMA..."
             Rscript R/baixar_anbima.R && break
             sleep 5
           done
