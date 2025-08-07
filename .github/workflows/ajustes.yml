@@ -2,74 +2,47 @@ name: Ajustes Diário
 
 on:
   schedule:
-    - cron: "30 8 * * 1-5"  # Executa 05:30 BRT (08:30 UTC)
-  workflow_dispatch:
+    - cron: "30 8 * * 1-5"  # Executa às 05:30 BRT (08:30 UTC), dias úteis
+  workflow_dispatch:         # Permite execução manual via botão
 
 jobs:
-  baixar-b3:
+  baixar-ajustes:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    container:
+      image: bpferreira/ajustes:v1  # Imagem Docker com R e pacotes
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
 
-      - name: Rodar baixar_b3.R com retry via Docker
+      - name: Rodar baixar_b3.R com retry
         run: |
-          docker run --rm -v ${{ github.workspace }}:/app -w /app bpferreira/ajustes:v1 Rscript -e '
-            for (i in 1:10) {
-              tryCatch({
-                cat(sprintf("Tentativa (%d/10) para baixar B3...\n", i))
-                source("R/baixar_b3.R")
-                break
-              }, error = function(e) {
-                cat("❌ Erro ao baixar B3:", conditionMessage(e), "\n")
-                if (i == 10) stop("Todas as tentativas falharam.")
-              })
-            }
-          '
+          for i in {1..10}; do
+            echo "Tentativa $i para baixar B3..."
+            Rscript R/baixar_b3.R && break
+            sleep 5
+          done
 
-      - name: Apagar arquivos B3 com mais de 5 dias
+      - name: Rodar baixar_anbima.R com retry
         run: |
-          find data/ajustes/b3/ -name "*.csv" -type f -mtime +5 -print -delete
+          for i in {1..10}; do
+            echo "Tentativa $i para baixar ANBIMA..."
+            Rscript R/baixar_anbima.R && break
+            sleep 5
+          done
 
-      - name: Commit e push dos dados B3
+      - name: Limpar arquivos antigos (+5 dias)
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add data/ajustes/b3/
-          git commit -m "Update ajustes B3 - $(date '+%Y-%m-%d')" || echo "No changes to commit"
+          echo "🧹 Limpando arquivos com mais de 5 dias..."
+          find data/ajustes/b3 -name "*.csv" -type f -mtime +5 -print -delete
+          find data/ajustes/anbima -name "*.csv" -type f -mtime +5 -print -delete
+
+      - name: Commit e push dos arquivos atualizados
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add data/
+          git commit -m "Atualização diária - $(date +'%Y-%m-%d')" || echo "Sem mudanças para commitar"
           git push
-
-  baixar-anbima:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Rodar baixar_anbima.R com retry via Docker
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/app -w /app bpferreira/ajustes:v1 Rscript -e '
-            for (i in 1:10) {
-              tryCatch({
-                cat(sprintf("Tentativa (%d/10) para baixar ANBIMA...\n", i))
-                source("R/baixar_anbima.R")
-                break
-              }, error = function(e) {
-                cat("❌ Erro ao baixar ANBIMA:", conditionMessage(e), "\n")
-                if (i == 10) stop("Todas as tentativas falharam.")
-              })
-            }
-          '
-
-      - name: Apagar arquivos ANBIMA com mais de 5 dias
-        run: |
-          find data/ajustes/anbima/ -name "*.xls" -type f -mtime +5 -print -delete
-
-      - name: Commit e push dos dados ANBIMA
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add data/ajustes/anbima/
-          git commit -m "Update ajustes ANBIMA - $(date '+%Y-%m-%d')" || echo "No changes to commit"
-          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
