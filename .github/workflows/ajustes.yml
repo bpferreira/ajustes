@@ -31,17 +31,28 @@ jobs:
           cat .github/workflows/ajustes.yml | head -10
           echo "✅ Verificação de cache concluída"
 
-      # <<< Passo CRÍTICO: rodar git config FORA do repo >>>
-      - name: Configurar Git (safe.directory + identidade)
+      # <<< SOLUÇÃO RADICAL: Configurar Git ANTES do checkout >>>
+      - name: Configurar Git (SOLUÇÃO RADICAL)
         run: |
-          echo "🔧 Configurando Git (fora do repositório) ..."
-          pushd / >/dev/null
+          echo "🔧 CONFIGURAÇÃO RADICAL DO GIT..."
+          
+          # Estratégia 1: Variável de ambiente global
+          export GIT_SAFE_DIRECTORY="*"
+          echo "✅ GIT_SAFE_DIRECTORY=* configurado"
+          
+          # Estratégia 2: Configurar Git em /tmp (fora de qualquer repo)
+          cd /tmp
           git config --global --add safe.directory '*'
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global user.name  "GitHub Action"
+          git config --global --add safe.directory "/_w/ajustes/ajustes"
+          git config --global --add safe.directory "/github/workspace"
+          git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          popd >/dev/null
-          echo "✅ Git configurado"
+          
+          # Estratégia 3: Verificar configuração
+          echo "🔍 Verificando configuração Git:"
+          git config --global --list | grep safe.directory
+          echo "✅ Configuração Git concluída"
 
       - name: Verificar estrutura inicial
         run: |
@@ -84,10 +95,13 @@ jobs:
           git pull --rebase || true
 
       - name: Commit e push dos arquivos atualizados
+        env:
+          GIT_SAFE_DIRECTORY: "*"
         run: |
           echo "📝 Preparando commit..."
-          # Reforço do safe.directory (idempotente) — agora já dentro do repo
+          # Reforço final do safe.directory
           git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
+          git config --global --add safe.directory "*" || true
 
           git add -A
           git status
