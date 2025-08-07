@@ -1,2 +1,8 @@
+# Ignora tudo dentro de data/ajustes
 data/ajustes/*
+
+# Mas permite:
 !data/ajustes/.keep
+!data/ajustes/*.csv
+!data/ajustes/*.json
+!data/ajustes/*.xlsx
