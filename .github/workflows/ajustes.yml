@@ -1,59 +1,22 @@
-name: Download Ajustes Separados com Retry
+name: Ajustes Diário
 
 on:
   schedule:
-  - cron: "30 8 * * 1-5"  # 08:30 UTC = 05:30 BRT
+    - cron: "30 8 * * 1-5"  # 05:30 BRT
   workflow_dispatch:
 
 jobs:
-  baixar-b3:
+  rodar-ajustes:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+
+    container:
+      image: bpferreira/ajustes:latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
 
-      - name: Setup R
-        uses: r-lib/actions/setup-r@v2
-
-      - name: Instalar pacotes
-        run: Rscript -e 'install.packages(c("httr", "lubridate"), repos="https://cloud.r-project.org")'
-
-      - name: Rodar baixar_b3.R com retry
+      - name: Rodar script de ajustes
         run: |
-          for i in {{1..10}}; do
-            echo "Tentativa $i para baixar B3..."
-            Rscript R/baixar_b3.R && break || sleep 1800
-          done
-
-  baixar-anbima:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup R
-        uses: r-lib/actions/setup-r@v2
-
-      - name: Instalar pacotes
-        run: Rscript -e 'install.packages(c("httr", "lubridate"))'
-
-      - name: Rodar baixar_anbima.R com retry
-        run: |
-          for i in {{1..10}}; do
-            echo "Tentativa $i para baixar ANBIMA..."
-            Rscript R/baixar_anbima.R && break || sleep 1800
-          done
-
-  upload:
-    needs: [baixar-b3, baixar-anbima]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Upload resultados
-        uses: actions/upload-artifact@v4
-        with:
-          name: ajustes-data
-          path: data/ajustes/
-          retention-days: 30
+          Rscript scripts/baixar_b3.R
+          Rscript scripts/baixar_anbima.R
