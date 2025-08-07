@@ -24,6 +24,11 @@ jobs:
           echo "📁 Conteúdo de data/ajustes/:"
           ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
 
+      - name: Executar diagnóstico completo
+        run: |
+          echo "🔍 Executando diagnóstico completo..."
+          Rscript R/diagnostico_completo.R
+
       - name: Testar criação de diretórios
         run: |
           echo "🧪 Testando criação de diretórios..."
@@ -41,6 +46,8 @@ jobs:
         run: |
           echo "📁 Arquivos B3 após download:"
           ls -la data/ajustes/b3/ || echo "Pasta B3 não existe"
+          echo "📁 Conteúdo detalhado:"
+          find data/ajustes/b3 -type f -exec ls -la {} \; 2>/dev/null || echo "Nenhum arquivo encontrado"
 
       - name: Rodar baixar_anbima.R com retry
         run: |
@@ -54,6 +61,8 @@ jobs:
         run: |
           echo "📁 Arquivos ANBIMA após download:"
           ls -la data/ajustes/anbima/ || echo "Pasta ANBIMA não existe"
+          echo "📁 Conteúdo detalhado:"
+          find data/ajustes/anbima -type f -exec ls -la {} \; 2>/dev/null || echo "Nenhum arquivo encontrado"
 
       - name: Limpar arquivos antigos (+5 dias)
         run: |
@@ -65,6 +74,8 @@ jobs:
         run: |
           echo "📁 Estrutura final dos dados:"
           find data/ajustes -type f -name "*.csv" -exec ls -la {} \;
+          echo "📁 Status do git:"
+          git status
 
       - name: Commit e push dos arquivos atualizados
         run: |
