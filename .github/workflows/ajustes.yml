@@ -2,7 +2,7 @@ name: Ajustes Diário
 
 on:
   schedule:
-    - cron: "30 8 * * 1-5"  # 05:30 BRT (08:30 UTC) dias úteis
+    - cron: "30 8 * * 1-5"  # 05:30 BRT (08:30 UTC), dias úteis
   workflow_dispatch:
 
 permissions:
@@ -15,44 +15,24 @@ jobs:
       image: bpferreira/ajustes:v1
 
     steps:
-      - name: Checkout do repositório (sem cache)
+      - name: Checkout do repositório
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0  # Força fetch completo
 
-      - name: Verificar versão atual (sem cache)
+      # >>> Passo crítico: configurar Git FORA do repositório + nível SYSTEM
+      - name: Fix Git ownership (safe.directory system-level)
+        working-directory: /
         run: |
-          echo "🔍 VERIFICAÇÃO DE CACHE:"
-          echo "📅 Data/hora: $(date)"
-          echo "📋 Último commit: $(git log -1 --oneline)"
-          echo "📋 Commit hash: $(git rev-parse HEAD)"
-          echo "📁 Conteúdo do workflow atual:"
-          cat .github/workflows/ajustes.yml | head -10
-          echo "✅ Verificação de cache concluída"
-
-      # <<< SOLUÇÃO RADICAL: Configurar Git ANTES do checkout >>>
-      - name: Configurar Git (SOLUÇÃO RADICAL)
-        run: |
-          echo "🔧 CONFIGURAÇÃO RADICAL DO GIT..."
-          
-          # Estratégia 1: Variável de ambiente global
-          export GIT_SAFE_DIRECTORY="*"
-          echo "✅ GIT_SAFE_DIRECTORY=* configurado"
-          
-          # Estratégia 2: Configurar Git em /tmp (fora de qualquer repo)
-          cd /tmp
-          git config --global --add safe.directory '*'
+          echo "Workspace: $GITHUB_WORKSPACE"
+          # Marca qualquer repo como seguro (coringa) e o workspace explicitamente
+          git config --system --add safe.directory '*'
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "/_w/ajustes/ajustes"
-          git config --global --add safe.directory "/github/workspace"
-          git config --global user.name "GitHub Action"
+          # Identidade do commit
+          git config --global user.name  "GitHub Action"
           git config --global user.email "action@github.com"
-          
-          # Estratégia 3: Verificar configuração
-          echo "🔍 Verificando configuração Git:"
-          git config --global --list | grep safe.directory
-          echo "✅ Configuração Git concluída"
+          # Debug: mostra onde o safe.directory foi salvo
+          git config --list --show-origin | grep -E 'safe\.directory|user\.name|user\.email' || true
+          echo "✅ Git configurado"
 
       - name: Verificar estrutura inicial
         run: |
@@ -83,26 +63,16 @@ jobs:
       - name: Verificar arquivos gerados
         run: |
           echo "📁 Verificando arquivos gerados:"
-          echo "📁 Conteúdo de data/ajustes/:"
           ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
-          echo "📁 Conteúdo de data/ajustes/b3/:"
           ls -la data/ajustes/b3/ || echo "Pasta data/ajustes/b3/ não existe"
-          echo "📁 Conteúdo de data/ajustes/anbima/:"
           ls -la data/ajustes/anbima/ || echo "Pasta data/ajustes/anbima/ não existe"
 
       - name: Pull com rebase (evitar conflitos)
-        run: |
-          git pull --rebase || true
+        run: git pull --rebase || true
 
       - name: Commit e push dos arquivos atualizados
-        env:
-          GIT_SAFE_DIRECTORY: "*"
         run: |
           echo "📝 Preparando commit..."
-          # Reforço final do safe.directory
-          git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
-          git config --global --add safe.directory "*" || true
-
           git add -A
           git status
           git commit -m "Atualizar dados de ajustes - $(date '+%Y-%m-%d')" || echo "Nenhuma mudança para commit"
