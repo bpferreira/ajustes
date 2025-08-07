@@ -19,13 +19,17 @@ jobs:
 
       - name: Configurar Git para GitHub Actions
         run: |
-          echo "🔧 Configurando Git..."
+          echo "🔧 Configurando Git para resolver 'dubious ownership'..."
+          # ADICIONAR SAFE.DIRECTORY ANTES DE QUALQUER OUTRA CONFIGURAÇÃO GIT
+          git config --global --add safe.directory /_w/ajustes/ajustes
+          git config --global --add safe.directory /github/workspace
+          git config --global --add safe.directory /__w/ajustes/ajustes
+          git config --global --add safe.directory .
+          
+          # AGORA CONFIGURAR USER.NAME E USER.EMAIL
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git config --global --add safe.directory /_w/ajustes/ajustes
-          git config --global --add safe.directory .
-          git config --global --add safe.directory /github/workspace
-          echo "✅ Git configurado"
+          echo "✅ Git configurado com safe.directory"
 
       - name: Verificar estrutura inicial
         run: |
