@@ -15,10 +15,21 @@ jobs:
       image: bpferreira/ajustes:v1
 
     steps:
-      - name: Checkout do repositório
+      - name: Checkout do repositório (sem cache)
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Força fetch completo
+
+      - name: Verificar versão atual (sem cache)
+        run: |
+          echo "🔍 VERIFICAÇÃO DE CACHE:"
+          echo "📅 Data/hora: $(date)"
+          echo "📋 Último commit: $(git log -1 --oneline)"
+          echo "📋 Commit hash: $(git rev-parse HEAD)"
+          echo "📁 Conteúdo do workflow atual:"
+          cat .github/workflows/ajustes.yml | head -10
+          echo "✅ Verificação de cache concluída"
 
       # <<< Passo CRÍTICO: rodar git config FORA do repo >>>
       - name: Configurar Git (safe.directory + identidade)
