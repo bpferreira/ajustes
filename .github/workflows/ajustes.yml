@@ -1,40 +1,27 @@
-name: Ajustes Diário
+name: Download Ajustes
 
 on:
   schedule:
-    - cron: "30 8 * * 1-5" # 05:30 BRT em dias úteis
+    - cron: "30 8 * * 1-5"  # 08:30 UTC = 05:30 BRT
   workflow_dispatch:
 
 jobs:
-  rodar-ajustes:
+  baixar-b3:
     runs-on: ubuntu-latest
-
-    container:
-      image: bpferreira/ajustes:latest
-
     steps:
-      - name: 🔄 Checkout do repositório
+      - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: 📊 Rodar script B3
-        run: Rscript R/baixar_b3.R
-
-      - name: 📈 Rodar script ANBIMA
-        run: Rscript R/baixar_anbima.R
-
-      - name: ✅ Verificar arquivos gerados
+      - name: Rodar baixar_b3.R com Docker
         run: |
-          test -s data/ajustes/b3/*.csv || (echo "❌ B3 CSV não gerado" && exit 1)
-          test -s data/ajustes/anbima/*.csv || (echo "❌ ANBIMA CSVs não gerados" && exit 1)
-        shell: bash
+          docker run --rm -v ${{ github.workspace }}/data:/home/rproject/data bpferreira/ajustes Rscript R/baixar_b3.R
 
-      - name: 📤 Commit e push (se houver mudanças)
+  baixar-anbima:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Rodar baixar_anbima.R com Docker
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add data/ajustes
-          git commit -m "📦 Atualização diária dos ajustes - $(date)" || echo "Sem alterações"
-          git push origin HEAD
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+          docker run --rm -v ${{ github.workspace }}/data:/home/rproject/data bpferreira/ajustes Rscript R/baixar_anbima.R
