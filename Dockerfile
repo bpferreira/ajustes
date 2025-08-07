@@ -1,17 +1,20 @@
-# Usa imagem base do R com build tools e tidyverse pré-instalado (economiza tempo)
+# Usa imagem base do R com tidyverse pré-instalado (readr, readxl, dplyr, etc.)
 FROM rocker/tidyverse:4.3.1
 
-# Define repositório confiável para evitar lentidão
+# Define repositório CRAN confiável
 ENV R_REPOS="https://cloud.r-project.org"
 
-# Instala apenas pacotes adicionais que você precisa além do tidyverse
-RUN R -e "install.packages(c('httr', 'lubridate'), repos=Sys.getenv('R_REPOS'))"
+# Instala pacotes adicionais usados nos scripts
+RUN R -e "install.packages(c('httr', 'lubridate', 'xml2', 'rvest', 'readxl', 'zoo'), repos=Sys.getenv('R_REPOS'))"
 
-# Define o diretório de trabalho
+# Define diretório de trabalho
 WORKDIR /home/rproject
 
-# Copia seu código local para dentro da imagem (para rodar localmente se quiser)
+# Copia todo o conteúdo do projeto para dentro do container
 COPY . .
 
-# Comando padrão (opcional para testes locais, ignorado no GitHub Actions)
+# Garante que o diretório de saída exista (usado nos scripts)
+RUN mkdir -p data/ajustes/b3 data/ajustes/anbima
+
+# Comando padrão — sobrescrito no GitHub Actions, mas útil para debug local
 CMD ["Rscript"]

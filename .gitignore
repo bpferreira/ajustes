@@ -1,8 +1,20 @@
-# Ignora tudo dentro de data/ajustes
-data/ajustes/*
+# Ignora dados de ajustes (B3, ANBIMA, etc.)
+data/ajustes/**
 
-# Mas permite:
-!data/ajustes/.keep
-!data/ajustes/*.csv
-!data/ajustes/*.json
-!data/ajustes/*.xlsx
+# Permite controle da estrutura (pasta e .gitkeep)
+!data/ajustes/.gitkeep
+
+# Arquivos temporários e de backup
+*.xls
+*.xlsx
+*.Rhistory
+*.RData
+*.Rproj.user
+
+# Ignora logs e cache
+*.log
+.cache/
+__pycache__/
+
+# Ignora outputs locais
+output/
