@@ -1,0 +1,25 @@
+ # Ignora dados de ajustes (B3, ANBIMA, etc.)
+data/ajustes/*.xls
+data/ajustes/*.xlsx
+data/ajustes/anbima/anbima_raw.xls
+
+# Permite controle da estrutura (pasta e .gitkeep)
+!data/ajustes/.gitkeep
+!data/ajustes/*.csv
+!data/ajustes/anbima/*.csv
+!data/ajustes/b3/*.csv
+
+# Arquivos temporários e de backup
+*.xls
+*.xlsx
+*.Rhistory
+*.RData
+*.Rproj.user
+
+# Ignora logs e cache
+*.log
+.cache/
+__pycache__/
+
+# Ignora outputs locais
+output/

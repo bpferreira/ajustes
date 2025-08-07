@@ -1,0 +1,84 @@
+name: Ajustes Diário
+
+on:
+  schedule:
+    - cron: "30 8 * * 1-5"  # Executa às 05:30 BRT (08:30 UTC), dias úteis
+  workflow_dispatch:         # Permite execução manual via botão
+
+jobs:
+  baixar-ajustes:
+    runs-on: ubuntu-latest
+    container:
+      image: bpferreira/ajustes:v1  # Imagem Docker com R e pacotes
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Verificar estrutura inicial
+        run: |
+          echo "📁 Estrutura inicial:"
+          ls -la
+          echo "📁 Conteúdo de data/:"
+          ls -la data/ || echo "Pasta data/ não existe"
+          echo "📁 Conteúdo de data/ajustes/:"
+          ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
+
+      - name: Testar criação de diretórios
+        run: |
+          echo "🧪 Testando criação de diretórios..."
+          Rscript R/teste_diretorios.R
+
+      - name: Rodar baixar_b3.R com retry
+        run: |
+          for i in {1..10}; do
+            echo "Tentativa $i para baixar B3..."
+            Rscript R/baixar_b3.R && break
+            sleep 5
+          done
+
+      - name: Verificar arquivos B3 após download
+        run: |
+          echo "📁 Arquivos B3 após download:"
+          ls -la data/ajustes/b3/ || echo "Pasta B3 não existe"
+
+      - name: Rodar baixar_anbima.R com retry
+        run: |
+          for i in {1..10}; do
+            echo "Tentativa $i para baixar ANBIMA..."
+            Rscript R/baixar_anbima.R && break
+            sleep 5
+          done
+
+      - name: Verificar arquivos ANBIMA após download
+        run: |
+          echo "📁 Arquivos ANBIMA após download:"
+          ls -la data/ajustes/anbima/ || echo "Pasta ANBIMA não existe"
+
+      - name: Limpar arquivos antigos (+5 dias)
+        run: |
+          echo "🧹 Limpando arquivos com mais de 5 dias..."
+          find data/ajustes/b3 -name "*.csv" -type f -mtime +5 -print -delete
+          find data/ajustes/anbima -name "*.csv" -type f -mtime +5 -print -delete
+
+      - name: Verificar arquivos finais
+        run: |
+          echo "📁 Estrutura final dos dados:"
+          find data/ajustes -type f -name "*.csv" -exec ls -la {} \;
+
+      - name: Commit e push dos arquivos atualizados
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          echo "📝 Status do git antes do add:"
+          git status
+          echo "📝 Adicionando arquivos..."
+          git add data/
+          echo "📝 Status do git após add:"
+          git status
+          echo "📝 Fazendo commit..."
+          git commit -m "Atualização diária - $(date +'%Y-%m-%d')" || echo "Sem mudanças para commitar"
+          echo "📝 Fazendo push..."
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
