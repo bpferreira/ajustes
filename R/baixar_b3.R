@@ -1,5 +1,6 @@
 # Pacotes necessários
-pacotes <- c("httr", "rvest", "xml2", "readr", "dplyr", "lubridate", "zoo", "purrr")
+pacotes <- c("httr", "rvest", "xml2", "readr", "dplyr", 
+             "lubridate", "zoo", "purrr")
 invisible(lapply(pacotes, function(p) {
   if (!requireNamespace(p, quietly = TRUE)) stop(paste("Pacote ausente:", p))
 }))
