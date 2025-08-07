@@ -14,12 +14,18 @@ jobs:
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configurar Git para GitHub Actions
         run: |
+          echo "🔧 Configurando Git..."
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git config --global --add safe.directory /_w/ajustes/ajustes
+          git config --global --add safe.directory .
+          git config --global --add safe.directory /github/workspace
+          echo "✅ Git configurado"
 
       - name: Verificar estrutura inicial
         run: |
