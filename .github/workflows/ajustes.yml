@@ -53,6 +53,11 @@ jobs:
           echo "📁 Conteúdo de data/ajustes/:"
           ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
 
+      - name: Executar diagnóstico de diretórios
+        run: |
+          echo "🔍 Executando diagnóstico de diretórios..."
+          Rscript R/diagnostico_diretorios.R
+
       - name: Rodar baixar_b3.R com retry
         run: |
           set -e
