@@ -50,48 +50,41 @@ jobs:
                       ins <- setdiff(pkgs, rownames(installed.packages())); \
                       if(length(ins)) install.packages(ins, repos="https://cloud.r-project.org")'
 
+      # 👇 Passo de diagnóstico: testa o openxlsx salvando um arquivo dummy
+      - name: Teste openxlsx (deve criar data/ajustes/test_xlsx.xlsx)
+        run: |
+          Rscript -e 'suppressPackageStartupMessages(library(openxlsx)); \
+                      dir.create("data/ajustes", showWarnings=FALSE, recursive=TRUE); \
+                      wb <- createWorkbook(); addWorksheet(wb,"Sheet1"); \
+                      writeData(wb,"Sheet1", data.frame(ok=1:3)); \
+                      saveWorkbook(wb, "data/ajustes/test_xlsx.xlsx", overwrite=TRUE); \
+                      cat("file.exists:", file.exists("data/ajustes/test_xlsx.xlsx"), "\n")'
+          echo "📂 Após teste openxlsx:"; ls -la data/ajustes || true
+          test -f data/ajustes/test_xlsx.xlsx || (echo "❌ Falha ao criar XLSX de teste (openxlsx/perm)" && exit 1)
+
       - name: Rodar baixar_b3.R (forçando wd)
         run: |
+          set -e
           echo "R getwd() antes do script:"; Rscript -e 'cat(getwd(), "\n")'
-          Rscript -e 'setwd(Sys.getenv("GITHUB_WORKSPACE")); source("R/baixar_b3.R")'
+          Rscript -e 'options(error=function(){traceback(2); q(status=1)}); \
+                      setwd(Sys.getenv("GITHUB_WORKSPACE")); \
+                      source("R/baixar_b3.R")'
           echo "📂 Após baixar_b3.R, conteúdo data/ajustes/b3:"; ls -la data/ajustes/b3 || true
-          # Asserts: exige pelo menos um CSV e um XLSX (ou XLS) gerado em b3
+          echo "🔎 Arquivos encontrados em b3:"
+          (ls -1 data/ajustes/b3/* 2>/dev/null || true)
+          # Asserts
           test -n "$(ls -1 data/ajustes/b3/*.csv 2>/dev/null)" || (echo "❌ CSV da B3 não gerado" && exit 1)
           test -n "$(ls -1 data/ajustes/b3/*.xlsx 2>/dev/null || ls -1 data/ajustes/b3/*.xls 2>/dev/null)" || (echo "❌ XLSX/XLS da B3 não gerado" && exit 1)
 
       - name: Rodar baixar_anbima.R (forçando wd)
         run: |
+          set -e
           echo "R getwd() antes do script:"; Rscript -e 'cat(getwd(), "\n")'
-          Rscript -e 'setwd(Sys.getenv("GITHUB_WORKSPACE")); source("R/baixar_anbima.R")'
+          Rscript -e 'options(error=function(){traceback(2); q(status=1)}); \
+                      setwd(Sys.getenv("GITHUB_WORKSPACE")); \
+                      source("R/baixar_anbima.R")'
           echo "📂 Após baixar_anbima.R, conteúdo data/ajustes/anbima:"; ls -la data/ajustes/anbima || true
-          # Asserts: exige pelo menos um CSV e um XLSX (ou XLS) gerado em anbima
-          test -n "$(ls -1 data/ajustes/anbima/*.csv 2>/dev/null)" || (echo "❌ CSV da ANBIMA não gerado" && exit 1)
-          test -n "$(ls -1 data/ajustes/anbima/*.xlsx 2>/dev/null || ls -1 data/ajustes/anbima/*.xls 2>/dev/null)" || (echo "❌ XLSX/XLS da ANBIMA não gerado" && exit 1)
-
-      - name: Varredura — procurar arquivos gerados no workspace
-        run: |
-          echo "🔎 Procurando .csv/.xls/.xlsx no workspace..."
-          find "$GITHUB_WORKSPACE" -type f \( -name "*.csv" -o -name "*.xls" -o -name "*.xlsx" \) -printf '%TY-%Tm-%Td %TT %p\n' | sort || true
-
-      - name: Varredura ampla — se salvou fora do workspace
-        run: |
-          echo "🔎 Procurando .csv/.xls/.xlsx fora também (limitado)..."
-          find / -maxdepth 4 -type f \( -name "*.csv" -o -name "*.xls" -o -name "*.xlsx" \) 2>/dev/null | grep -E '/(ajustes|anbima|b3)/' || true
-
-      - name: Checar se o Git está ignorando algo
-        run: |
-          echo "Conteúdo do .gitignore (se houver):"
-          [ -f .gitignore ] && cat .gitignore || echo "(sem .gitignore)"
-          echo "--- git check-ignore ---"
-          git check-ignore -v data/ajustes/* data/ajustes/b3/* data/ajustes/anbima/* || echo "Nada ignorado"
-
-      - name: Status do repo (antes do commit)
-        run: git status
-
-      - name: Commit e push dos arquivos atualizados
-        run: |
-          echo "📝 Preparando commit..."
-          git add data/ajustes || true
-          git status
-          git commit -m "Atualizar ajustes B3/ANBIMA - $(date '+%Y-%m-%d %H:%M:%S')" || echo "Nenhuma mudança para commit"
-          git push || echo "Nenhuma mudança para push"
+          echo "🔎 Arquivos encontrados em anbima:"
+          (ls -1 data/ajustes/anbima/* 2>/dev/null || true)
+          # Asserts
+          test -n "$(ls -1 data/ajustes/anbima/*.csv 2>/dev/null)" || (echo "❌ CSV da ANBIMA não gerad*
