@@ -1,12 +1,14 @@
-name: Ajustes Diário
+name: Ajustes Diário (debug)
 
 on:
-  schedule:
-    - cron: "30 8 * * 1-5"  # 05:30 BRT (08:30 UTC), dias úteis
   workflow_dispatch:
 
 permissions:
   contents: write
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   baixar-ajustes:
@@ -30,82 +32,57 @@ jobs:
           cat .github/workflows/ajustes.yml | head -10
           echo "✅ Verificação de cache concluída"
 
-      # >>> PASSO CRÍTICO: configurar Git FORA do repo e marcar safe.directory no SYSTEM
       - name: Fix Git ownership (system-level safe.directory)
         working-directory: /
         run: |
-          echo "Workspace: $GITHUB_WORKSPACE"
           git config --system --add safe.directory '*'
           git config --system --add safe.directory "$GITHUB_WORKSPACE"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --global user.name  "GitHub Action"
           git config --global user.email "action@github.com"
-          echo "--- git config (origens) ---"
-          git config --list --show-origin | grep -E 'safe\.directory|user\.name|user\.email' || true
-          echo "✅ Git configurado fora do repositório"
 
-      - name: Verificar estrutura inicial
+      - name: Echo env e diretórios
         run: |
-          echo "📁 Estrutura inicial:"
-          ls -la
-          echo "📁 Conteúdo de data/:"
-          ls -la data/ || echo "Pasta data/ não existe"
-          echo "📁 Conteúdo de data/ajustes/:"
-          ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          echo "PWD (bash)="; pwd
+          echo "Listando raiz do repo:"; ls -la
+          echo "R getwd():"; Rscript -e 'cat(getwd(), "\n")'
 
-      - name: Executar diagnóstico de diretórios
+      - name: Garantir pastas de saída
         run: |
-          echo "🔍 Executando diagnóstico de diretórios..."
-          Rscript R/diagnostico_diretorios.R
+          mkdir -p data/ajustes/b3
+          mkdir -p data/ajustes/anbima
+          ls -la data/ajustes || true
 
-      - name: Rodar baixar_b3.R com retry
+      - name: Rodar baixar_b3.R (logando caminho)
         run: |
-          set -e
-          for i in {1..5}; do
-            echo "Tentativa {$i} para baixar B3..."
-            if Rscript R/baixar_b3.R; then
-              echo "✅ baixar_b3.R concluído"
-              break
-            fi
-            echo "❌ Falha. Aguardando e tentando novamente..."
-            sleep 10
-          done
+          echo "R getwd() antes do script:"; Rscript -e 'cat(getwd(), "\n")'
+          Rscript R/baixar_b3.R
+          echo "📂 Após baixar_b3.R, conteúdo data/ajustes/b3:"; ls -la data/ajustes/b3 || true
 
-      - name: Rodar baixar_anbima.R com retry
+      - name: Rodar baixar_anbima.R (logando caminho)
         run: |
-          set -e
-          for i in {1..5}; do
-            echo "Tentativa {$i} para baixar ANBIMA..."
-            if Rscript R/baixar_anbima.R; then
-              echo "✅ baixar_anbima.R concluído"
-              break
-            fi
-            echo "❌ Falha. Aguardando e tentando novamente..."
-            sleep 10
-          done
+          echo "R getwd() antes do script:"; Rscript -e 'cat(getwd(), "\n")'
+          Rscript R/baixar_anbima.R
+          echo "📂 Após baixar_anbima.R, conteúdo data/ajustes/anbima:"; ls -la data/ajustes/anbima || true
 
-      - name: Limpar arquivos antigos (+5 dias)
+      - name: Varredura — procurar arquivos gerados no workspace
         run: |
-          echo "🧹 Limpando CSV antigos com mais de 5 dias em data/ajustes/**"
-          find data/ajustes -type f -name "*.csv" -mtime +5 -print -delete || true
+          echo "🔎 Procurando .csv/.xls no workspace..."
+          find "$GITHUB_WORKSPACE" -type f \( -name "*.csv" -o -name "*.xls" \) -printf '%TY-%Tm-%Td %TT %p\n' | sort || true
 
-      - name: Verificar arquivos gerados
+      - name: Varredura ampla — se salvou fora do workspace
         run: |
-          echo "📁 Conteúdo de data/ajustes/:"
-          ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
-          echo "📁 Conteúdo de data/ajustes/b3/:"
-          ls -la data/ajustes/b3/ || echo "Pasta data/ajustes/b3/ não existe"
-          echo "📁 Conteúdo de data/ajustes/anbima/:"
-          ls -la data/ajustes/anbima/ || echo "Pasta data/ajustes/anbima/ não existe"
+          echo "🔎 Procurando .csv/.xls fora também (limitado)..."
+          find / -maxdepth 4 -type f \( -name "*.csv" -o -name "*.xls" \) 2>/dev/null | grep -E '/(ajustes|anbima|b3)/' || true
 
-      - name: Pull com rebase (evitar conflitos)
-        run: git pull --rebase || true
-
-      # ⚠️ NADA de `git config` aqui. Apenas add/commit/push.
-      - name: Commit e push dos arquivos atualizados
+      - name: Checar se o Git está ignorando algo
         run: |
-          echo "📝 Preparando commit..."
-          git add -A
+          echo "Conteúdo do .gitignore (se houver):"
+          [ -f .gitignore ] && cat .gitignore || echo "(sem .gitignore)"
+          echo "--- git check-ignore ---"
+          git check-ignore -v data/ajustes/* data/ajustes/b3/* data/ajustes/anbima/* || echo "Nada ignorado"
+
+      - name: Status do repo
+        run: |
           git status
-          git commit -m "Atualizar dados de ajustes - $(date '+%Y-%m-%d')" || echo "Nenhuma mudança para commit"
-          git push || echo "Nenhuma mudança para push"
