@@ -36,14 +36,6 @@ jobs:
           echo "PWD (bash)="; pwd
           echo "Listando raiz do repo:"; ls -la
           echo "R getwd():"; Rscript -e 'cat(getwd(), "\n")'
-          Rscript -e 'sessionInfo()'
-
-      - name: Verificar se scripts têm bloco XLSX
-        run: |
-          echo ">> baixar_b3.R:"
-          nl -ba R/baixar_b3.R | sed -n '1,400p' | grep -nE 'openxlsx|createWorkbook|saveWorkbook|writeDataTable' || echo "(não encontrou funções XLSX no baixar_b3.R)"
-          echo ">> baixar_anbima.R:"
-          nl -ba R/baixar_anbima.R | sed -n '1,400p' | grep -nE 'openxlsx|createWorkbook|saveWorkbook|writeDataTable' || echo "(não encontrou funções XLSX no baixar_anbima.R)"
 
       - name: Garantir pastas de saída
         run: |
@@ -51,63 +43,46 @@ jobs:
           mkdir -p data/ajustes/anbima
           ls -la data/ajustes || true
 
-      # SISTEMA: toolchain e libs para compilar/rodar pacotes R nativos
-      - name: Instalar toolchain e libs do sistema
+      # Instalar pacotes mínimos para conversão CSV -> XLSX no próprio workflow
+      - name: Instalar pacotes para conversão (writexl, readr)
         run: |
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential libcurl4-openssl-dev libssl-dev libxml2-dev \
-            zlib1g-dev libbz2-dev liblzma-dev libzstd-dev
-          apt-get clean
-          rm -rf /var/lib/apt/lists/*
-
-      # R: instalar pacotes necessários
-      - name: Instalar pacotes R (readxl, openxlsx, writexl)
-        run: |
-          Rscript -e 'pkgs <- c("readxl","openxlsx","writexl"); \
-                      need <- setdiff(pkgs, rownames(installed.packages())); \
-                      if(length(need)) install.packages(need, repos="https://cloud.r-project.org"); \
-                      cat("Versões -> openxlsx:", as.character(packageVersion("openxlsx")), \
-                          " readxl:", as.character(packageVersion("readxl")), \
-                          " writexl:", as.character(packageVersion("writexl")), "\n")'
-
-      # Smoke test: criar um XLSX simples
-      - name: Teste openxlsx (deve criar data/ajustes/test_xlsx.xlsx)
-        run: |
-          Rscript -e 'suppressPackageStartupMessages(library(openxlsx)); \
-                      dir.create("data/ajustes", showWarnings=FALSE, recursive=TRUE); \
-                      wb <- createWorkbook(); addWorksheet(wb,"Sheet1"); \
-                      writeData(wb,"Sheet1", data.frame(ok=1:3)); \
-                      saveWorkbook(wb, "data/ajustes/test_xlsx.xlsx", overwrite=TRUE); \
-                      cat("file.exists:", file.exists("data/ajustes/test_xlsx.xlsx"), "\n")'
-          echo "📂 Após teste openxlsx:"; ls -la data/ajustes || true
-          test -f data/ajustes/test_xlsx.xlsx || (echo "❌ Falha ao criar XLSX de teste (openxlsx/perm)" && exit 1)
+          Rscript -e 'pkgs <- c("writexl","readr"); \
+                      ins <- setdiff(pkgs, rownames(installed.packages())); \
+                      if(length(ins)) install.packages(ins, repos="https://cloud.r-project.org")'
 
       - name: Rodar baixar_b3.R (forçando wd)
         run: |
-          set -e
           echo "R getwd() antes do script:"; Rscript -e 'cat(getwd(), "\n")'
-          Rscript -e 'options(error=function(){traceback(2); q(status=1)}); \
-                      setwd(Sys.getenv("GITHUB_WORKSPACE")); \
-                      source("R/baixar_b3.R")'
-          echo "📂 data/ajustes/b3:"; ls -la data/ajustes/b3 || true
-          echo "🔎 Arquivos b3:"; (ls -1 data/ajustes/b3/* 2>/dev/null || true)
-          # Asserts
+          Rscript -e 'setwd(Sys.getenv("GITHUB_WORKSPACE")); source("R/baixar_b3.R")'
+          echo "📂 Após baixar_b3.R, conteúdo data/ajustes/b3:"; ls -la data/ajustes/b3 || true
           test -n "$(ls -1 data/ajustes/b3/*.csv 2>/dev/null)" || (echo "❌ CSV da B3 não gerado" && exit 1)
-          test -n "$(ls -1 data/ajustes/b3/*.xlsx 2>/dev/null || ls -1 data/ajustes/b3/*.xls 2>/dev/null)" || (echo "❌ XLSX/XLS da B3 não gerado" && exit 1)
 
       - name: Rodar baixar_anbima.R (forçando wd)
         run: |
-          set -e
           echo "R getwd() antes do script:"; Rscript -e 'cat(getwd(), "\n")'
-          Rscript -e 'options(error=function(){traceback(2); q(status=1)}); \
-                      setwd(Sys.getenv("GITHUB_WORKSPACE")); \
-                      source("R/baixar_anbima.R")'
-          echo "📂 data/ajustes/anbima:"; ls -la data/ajustes/anbima || true
-          echo "🔎 Arquivos anbima:"; (ls -1 data/ajustes/anbima/* 2>/dev/null || true)
-          # Asserts
+          Rscript -e 'setwd(Sys.getenv("GITHUB_WORKSPACE")); source("R/baixar_anbima.R")'
+          echo "📂 Após baixar_anbima.R, conteúdo data/ajustes/anbima:"; ls -la data/ajustes/anbima || true
           test -n "$(ls -1 data/ajustes/anbima/*.csv 2>/dev/null)" || (echo "❌ CSV da ANBIMA não gerado" && exit 1)
-          test -n "$(ls -1 data/ajustes/anbima/*.xlsx 2>/dev/null || ls -1 data/ajustes/anbima/*.xls 2>/dev/null)" || (echo "❌ XLSX/XLS da ANBIMA não gerado" && exit 1)
+
+      # 👇 CONVERSÃO UNIVERSAL: transforma todos CSVs em XLSX (mantém nome base)
+      - name: Converter todos CSVs para XLSX (fallback)
+        run: |
+          Rscript -e 'suppressPackageStartupMessages({library(writexl); library(readr)}) ; \
+                      csvs <- list.files("data/ajustes", pattern="\\.csv$", recursive=TRUE, full.names=TRUE); \
+                      if(length(csvs)==0) { cat("⚠️ Nenhum CSV encontrado para converter\n"); quit(status=0) } ; \
+                      for (f in csvs) { \
+                        # tenta ler como pt-BR; se falhar, tenta padrão
+                        ok <- FALSE ; df <- NULL ; \
+                        try({ df <- read.csv2(f, check.names=FALSE); ok <- TRUE }, silent=TRUE); \
+                        if(!ok) try({ df <- readr::read_csv(f, show_col_types=FALSE) ; ok <- TRUE }, silent=TRUE) ; \
+                        if(!ok || is.null(df)) { cat("❌ Falha ao ler CSV:", f, "\n"); next } ; \
+                        out <- sub("\\\\.csv$", ".xlsx", f, ignore.case=TRUE) ; \
+                        writexl::write_xlsx(df, out) ; \
+                        cat("✅ XLSX criado:", out, "exists=", file.exists(out), "\n") \
+                      }'
+          echo "📂 Verificando XLSX gerados:"
+          find data/ajustes -type f -name "*.xlsx" -printf '%p\n' | sort || true
+          test -n "$(find data/ajustes -type f -name "*.xlsx" -print -quit)" || (echo "❌ Nenhum XLSX gerado a partir dos CSVs" && exit 1)
 
       - name: Varredura — procurar arquivos gerados no workspace
         run: |
