@@ -36,6 +36,14 @@ jobs:
           echo "PWD (bash)="; pwd
           echo "Listando raiz do repo:"; ls -la
           echo "R getwd():"; Rscript -e 'cat(getwd(), "\n")'
+          Rscript -e 'sessionInfo()'
+
+      - name: Verificar se scripts têm bloco XLSX
+        run: |
+          echo ">> baixar_b3.R:"
+          nl -ba R/baixar_b3.R | sed -n '1,400p' | grep -nE 'openxlsx|createWorkbook|saveWorkbook|writeDataTable' || echo "(não encontrou funções XLSX no baixar_b3.R)"
+          echo ">> baixar_anbima.R:"
+          nl -ba R/baixar_anbima.R | sed -n '1,400p' | grep -nE 'openxlsx|createWorkbook|saveWorkbook|writeDataTable' || echo "(não encontrou funções XLSX no baixar_anbima.R)"
 
       - name: Garantir pastas de saída
         run: |
@@ -43,14 +51,27 @@ jobs:
           mkdir -p data/ajustes/anbima
           ls -la data/ajustes || true
 
-      # Instalar pacotes que os scripts usam para gerar XLSX
-      - name: Instalar pacotes extras (readxl, openxlsx)
+      # SISTEMA: toolchain e libs para compilar/rodar pacotes R nativos
+      - name: Instalar toolchain e libs do sistema
         run: |
-          Rscript -e 'pkgs <- c("readxl","openxlsx"); \
-                      ins <- setdiff(pkgs, rownames(installed.packages())); \
-                      if(length(ins)) install.packages(ins, repos="https://cloud.r-project.org")'
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential libcurl4-openssl-dev libssl-dev libxml2-dev \
+            zlib1g-dev libbz2-dev liblzma-dev libzstd-dev
+          apt-get clean
+          rm -rf /var/lib/apt/lists/*
 
-      # 👇 Passo de diagnóstico: testa o openxlsx salvando um arquivo dummy
+      # R: instalar pacotes necessários
+      - name: Instalar pacotes R (readxl, openxlsx, writexl)
+        run: |
+          Rscript -e 'pkgs <- c("readxl","openxlsx","writexl"); \
+                      need <- setdiff(pkgs, rownames(installed.packages())); \
+                      if(length(need)) install.packages(need, repos="https://cloud.r-project.org"); \
+                      cat("Versões -> openxlsx:", as.character(packageVersion("openxlsx")), \
+                          " readxl:", as.character(packageVersion("readxl")), \
+                          " writexl:", as.character(packageVersion("writexl")), "\n")'
+
+      # Smoke test: criar um XLSX simples
       - name: Teste openxlsx (deve criar data/ajustes/test_xlsx.xlsx)
         run: |
           Rscript -e 'suppressPackageStartupMessages(library(openxlsx)); \
@@ -69,9 +90,8 @@ jobs:
           Rscript -e 'options(error=function(){traceback(2); q(status=1)}); \
                       setwd(Sys.getenv("GITHUB_WORKSPACE")); \
                       source("R/baixar_b3.R")'
-          echo "📂 Após baixar_b3.R, conteúdo data/ajustes/b3:"; ls -la data/ajustes/b3 || true
-          echo "🔎 Arquivos encontrados em b3:"
-          (ls -1 data/ajustes/b3/* 2>/dev/null || true)
+          echo "📂 data/ajustes/b3:"; ls -la data/ajustes/b3 || true
+          echo "🔎 Arquivos b3:"; (ls -1 data/ajustes/b3/* 2>/dev/null || true)
           # Asserts
           test -n "$(ls -1 data/ajustes/b3/*.csv 2>/dev/null)" || (echo "❌ CSV da B3 não gerado" && exit 1)
           test -n "$(ls -1 data/ajustes/b3/*.xlsx 2>/dev/null || ls -1 data/ajustes/b3/*.xls 2>/dev/null)" || (echo "❌ XLSX/XLS da B3 não gerado" && exit 1)
@@ -83,8 +103,24 @@ jobs:
           Rscript -e 'options(error=function(){traceback(2); q(status=1)}); \
                       setwd(Sys.getenv("GITHUB_WORKSPACE")); \
                       source("R/baixar_anbima.R")'
-          echo "📂 Após baixar_anbima.R, conteúdo data/ajustes/anbima:"; ls -la data/ajustes/anbima || true
-          echo "🔎 Arquivos encontrados em anbima:"
-          (ls -1 data/ajustes/anbima/* 2>/dev/null || true)
+          echo "📂 data/ajustes/anbima:"; ls -la data/ajustes/anbima || true
+          echo "🔎 Arquivos anbima:"; (ls -1 data/ajustes/anbima/* 2>/dev/null || true)
           # Asserts
-          test -n "$(ls -1 data/ajustes/anbima/*.csv 2>/dev/null)" || (echo "❌ CSV da ANBIMA não gerad*
+          test -n "$(ls -1 data/ajustes/anbima/*.csv 2>/dev/null)" || (echo "❌ CSV da ANBIMA não gerado" && exit 1)
+          test -n "$(ls -1 data/ajustes/anbima/*.xlsx 2>/dev/null || ls -1 data/ajustes/anbima/*.xls 2>/dev/null)" || (echo "❌ XLSX/XLS da ANBIMA não gerado" && exit 1)
+
+      - name: Varredura — procurar arquivos gerados no workspace
+        run: |
+          echo "🔎 Procurando .csv/.xls/.xlsx no workspace..."
+          find "$GITHUB_WORKSPACE" -type f \( -name "*.csv" -o -name "*.xls" -o -name "*.xlsx" \) -printf '%TY-%Tm-%Td %TT %p\n' | sort || true
+
+      - name: Status do repo (antes do commit)
+        run: git status
+
+      - name: Commit e push dos arquivos atualizados
+        run: |
+          echo "📝 Preparando commit..."
+          git add -f data/ajustes/**/*.csv data/ajustes/**/*.xlsx data/ajustes/**/*.xls || true
+          git status
+          git commit -m "Atualizar ajustes B3/ANBIMA - $(date '+%Y-%m-%d %H:%M:%S')" || echo "Nenhuma mudança para commit"
+          git push || echo "Nenhuma mudança para push"
