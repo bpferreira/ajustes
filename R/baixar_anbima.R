@@ -21,7 +21,7 @@ sanitize <- function(name) {
 get_anbima_url <- function(data_ref) {
   meses <- c("jan", "fev", "mar", "abr", "mai", "jun",
              "jul", "ago", "set", "out", "nov", "dez")
-  sprintf("https://www.anbima.com.br/informacoes/merc-sec/arqs/m%sy%s%s.xls",
+  sprintf("https://www.anbima.com.br/informacoes/merc-sec/arqs/m%s%s%s.xls",
           format(data_ref, "%y"),
           meses[as.integer(format(data_ref, "%m"))],
           format(data_ref, "%d"))
