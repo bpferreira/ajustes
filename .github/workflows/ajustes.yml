@@ -43,6 +43,13 @@ jobs:
           mkdir -p data/ajustes/anbima
           ls -la data/ajustes || true
 
+      # Instala pacotes extras caso a imagem não tenha
+      - name: Instalar pacotes extras (readxl, openxlsx)
+        run: |
+          Rscript -e 'pkgs <- c("readxl","openxlsx"); \
+                      ins <- setdiff(pkgs, rownames(installed.packages())); \
+                      if(length(ins)) install.packages(ins, repos="https://cloud.r-project.org")'
+
       - name: Rodar baixar_b3.R (forçando wd)
         run: |
           echo "R getwd() antes do script:"; Rscript -e 'cat(getwd(), "\n")'
@@ -57,13 +64,13 @@ jobs:
 
       - name: Varredura — procurar arquivos gerados no workspace
         run: |
-          echo "🔎 Procurando .csv/.xls no workspace..."
-          find "$GITHUB_WORKSPACE" -type f \( -name "*.csv" -o -name "*.xls" \) -printf '%TY-%Tm-%Td %TT %p\n' | sort || true
+          echo "🔎 Procurando .csv/.xls/.xlsx no workspace..."
+          find "$GITHUB_WORKSPACE" -type f \( -name "*.csv" -o -name "*.xls" -o -name "*.xlsx" \) -printf '%TY-%Tm-%Td %TT %p\n' | sort || true
 
       - name: Varredura ampla — se salvou fora do workspace
         run: |
-          echo "🔎 Procurando .csv/.xls fora também (limitado)..."
-          find / -maxdepth 4 -type f \( -name "*.csv" -o -name "*.xls" \) 2>/dev/null | grep -E '/(ajustes|anbima|b3)/' || true
+          echo "🔎 Procurando .csv/.xls/.xlsx fora também (limitado)..."
+          find / -maxdepth 4 -type f \( -name "*.csv" -o -name "*.xls" -o -name "*.xlsx" \) 2>/dev/null | grep -E '/(ajustes|anbima|b3)/' || true
 
       - name: Checar se o Git está ignorando algo
         run: |
@@ -72,6 +79,13 @@ jobs:
           echo "--- git check-ignore ---"
           git check-ignore -v data/ajustes/* data/ajustes/b3/* data/ajustes/anbima/* || echo "Nada ignorado"
 
-      - name: Status do repo
+      - name: Status do repo (antes do commit)
+        run: git status
+
+      - name: Commit e push dos arquivos atualizados
         run: |
+          echo "📝 Preparando commit..."
+          git add data/ajustes || true
           git status
+          git commit -m "Atualizar ajustes B3/ANBIMA - $(date '+%Y-%m-%d %H:%M:%S')" || echo "Nenhuma mudança para commit"
+          git push || echo "Nenhuma mudança para push"
