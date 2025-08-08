@@ -18,7 +18,7 @@ jobs:
       - name: Checkout do repositório
         uses: actions/checkout@v4
 
-      # Passo CRÍTICO: configurar git FORA do repo e marcar safe.directory no SYSTEM
+      # >>> PASSO CRÍTICO: configurar Git FORA do repo e marcar safe.directory no SYSTEM
       - name: Fix Git ownership (system-level safe.directory)
         working-directory: /
         run: |
@@ -34,29 +34,57 @@ jobs:
 
       - name: Verificar estrutura inicial
         run: |
+          echo "📁 Estrutura inicial:"
           ls -la
+          echo "📁 Conteúdo de data/:"
           ls -la data/ || echo "Pasta data/ não existe"
+          echo "📁 Conteúdo de data/ajustes/:"
           ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
 
-      - name: Executar diagnóstico completo
-        run: Rscript R/diagnostico_completo.R
+      - name: Rodar baixar_b3.R com retry
+        run: |
+          set -e
+          for i in {1..5}; do
+            echo "Tentativa {$i} para baixar B3..."
+            if Rscript R/baixar_b3.R; then
+              echo "✅ baixar_b3.R concluído"
+              break
+            fi
+            echo "❌ Falha. Aguardando e tentando novamente..."
+            sleep 10
+          done
 
-      - name: Rodar baixar_b3.R
-        run: Rscript R/baixar_b3.R
+      - name: Rodar baixar_anbima.R com retry
+        run: |
+          set -e
+          for i in {1..5}; do
+            echo "Tentativa {$i} para baixar ANBIMA..."
+            if Rscript R/baixar_anbima.R; then
+              echo "✅ baixar_anbima.R concluído"
+              break
+            fi
+            echo "❌ Falha. Aguardando e tentando novamente..."
+            sleep 10
+          done
 
-      - name: Rodar baixar_anbima.R
-        run: Rscript R/baixar_anbima.R
+      - name: Limpar arquivos antigos (+5 dias)
+        run: |
+          echo "🧹 Limpando CSV antigos com mais de 5 dias em data/ajustes/**"
+          find data/ajustes -type f -name "*.csv" -mtime +5 -print -delete || true
 
       - name: Verificar arquivos gerados
         run: |
+          echo "📁 Conteúdo de data/ajustes/:"
           ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
+          echo "📁 Conteúdo de data/ajustes/b3/:"
           ls -la data/ajustes/b3/ || echo "Pasta data/ajustes/b3/ não existe"
+          echo "📁 Conteúdo de data/ajustes/anbima/:"
           ls -la data/ajustes/anbima/ || echo "Pasta data/ajustes/anbima/ não existe"
 
       - name: Pull com rebase (evitar conflitos)
         run: git pull --rebase || true
 
-      # NENHUM git config AQUI! Apenas add/commit/push.
+      # ⚠️ NADA de `git config` aqui. Apenas add/commit/push.
       - name: Commit e push dos arquivos atualizados
         run: |
           echo "📝 Preparando commit..."
