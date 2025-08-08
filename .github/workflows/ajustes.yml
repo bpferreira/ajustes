@@ -18,51 +18,37 @@ jobs:
       - name: Checkout do repositório
         uses: actions/checkout@v4
 
-      # >>> Passo crítico: configurar Git FORA do repositório + nível SYSTEM
-      - name: Fix Git ownership (safe.directory system-level)
+      # Passo CRÍTICO: configurar git FORA do repo e marcar safe.directory no SYSTEM
+      - name: Fix Git ownership (system-level safe.directory)
         working-directory: /
         run: |
           echo "Workspace: $GITHUB_WORKSPACE"
-          # Marca qualquer repo como seguro (coringa) e o workspace explicitamente
           git config --system --add safe.directory '*'
           git config --system --add safe.directory "$GITHUB_WORKSPACE"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          # Identidade do commit
           git config --global user.name  "GitHub Action"
           git config --global user.email "action@github.com"
-          # Debug: mostra onde o safe.directory foi salvo
+          echo "--- git config (origens) ---"
           git config --list --show-origin | grep -E 'safe\.directory|user\.name|user\.email' || true
-          echo "✅ Git configurado"
+          echo "✅ Git configurado fora do repositório"
 
       - name: Verificar estrutura inicial
         run: |
-          echo "📁 Estrutura inicial:"
           ls -la
-          echo "📁 Conteúdo de data/:"
           ls -la data/ || echo "Pasta data/ não existe"
-          echo "📁 Conteúdo de data/ajustes/:"
           ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
 
       - name: Executar diagnóstico completo
-        run: |
-          echo "🔍 Executando diagnóstico completo..."
-          Rscript R/diagnostico_completo.R
+        run: Rscript R/diagnostico_completo.R
 
       - name: Rodar baixar_b3.R
-        run: |
-          echo "📊 Executando baixar_b3.R..."
-          Rscript R/baixar_b3.R
-          echo "✅ baixar_b3.R concluído"
+        run: Rscript R/baixar_b3.R
 
       - name: Rodar baixar_anbima.R
-        run: |
-          echo "📊 Executando baixar_anbima.R..."
-          Rscript R/baixar_anbima.R
-          echo "✅ baixar_anbima.R concluído"
+        run: Rscript R/baixar_anbima.R
 
       - name: Verificar arquivos gerados
         run: |
-          echo "📁 Verificando arquivos gerados:"
           ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
           ls -la data/ajustes/b3/ || echo "Pasta data/ajustes/b3/ não existe"
           ls -la data/ajustes/anbima/ || echo "Pasta data/ajustes/anbima/ não existe"
@@ -70,6 +56,7 @@ jobs:
       - name: Pull com rebase (evitar conflitos)
         run: git pull --rebase || true
 
+      # NENHUM git config AQUI! Apenas add/commit/push.
       - name: Commit e push dos arquivos atualizados
         run: |
           echo "📝 Preparando commit..."
