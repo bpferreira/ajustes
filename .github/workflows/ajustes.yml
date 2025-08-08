@@ -2,47 +2,93 @@ name: Ajustes Diário
 
 on:
   schedule:
-    - cron: "30 8 * * 1-5"  # Executa às 05:30 BRT (08:30 UTC), dias úteis
-  workflow_dispatch:         # Permite execução manual via botão
+    - cron: "30 8 * * 1-5"  # 05:30 BRT (08:30 UTC), dias úteis
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   baixar-ajustes:
     runs-on: ubuntu-latest
     container:
-      image: bpferreira/ajustes:v1  # Imagem Docker com R e pacotes
+      image: bpferreira/ajustes:v1
 
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v4
 
+      # >>> PASSO CRÍTICO: configurar Git FORA do repo e marcar safe.directory no SYSTEM
+      - name: Fix Git ownership (system-level safe.directory)
+        working-directory: /
+        run: |
+          echo "Workspace: $GITHUB_WORKSPACE"
+          git config --system --add safe.directory '*'
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global user.name  "GitHub Action"
+          git config --global user.email "action@github.com"
+          echo "--- git config (origens) ---"
+          git config --list --show-origin | grep -E 'safe\.directory|user\.name|user\.email' || true
+          echo "✅ Git configurado fora do repositório"
+
+      - name: Verificar estrutura inicial
+        run: |
+          echo "📁 Estrutura inicial:"
+          ls -la
+          echo "📁 Conteúdo de data/:"
+          ls -la data/ || echo "Pasta data/ não existe"
+          echo "📁 Conteúdo de data/ajustes/:"
+          ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
+
       - name: Rodar baixar_b3.R com retry
         run: |
-          for i in {1..10}; do
-            echo "Tentativa $i para baixar B3..."
-            Rscript R/baixar_b3.R && break
-            sleep 5
+          set -e
+          for i in {1..5}; do
+            echo "Tentativa {$i} para baixar B3..."
+            if Rscript R/baixar_b3.R; then
+              echo "✅ baixar_b3.R concluído"
+              break
+            fi
+            echo "❌ Falha. Aguardando e tentando novamente..."
+            sleep 10
           done
 
       - name: Rodar baixar_anbima.R com retry
         run: |
-          for i in {1..10}; do
-            echo "Tentativa $i para baixar ANBIMA..."
-            Rscript R/baixar_anbima.R && break
-            sleep 5
+          set -e
+          for i in {1..5}; do
+            echo "Tentativa {$i} para baixar ANBIMA..."
+            if Rscript R/baixar_anbima.R; then
+              echo "✅ baixar_anbima.R concluído"
+              break
+            fi
+            echo "❌ Falha. Aguardando e tentando novamente..."
+            sleep 10
           done
 
       - name: Limpar arquivos antigos (+5 dias)
         run: |
-          echo "🧹 Limpando arquivos com mais de 5 dias..."
-          find data/ajustes/b3 -name "*.csv" -type f -mtime +5 -print -delete
-          find data/ajustes/anbima -name "*.csv" -type f -mtime +5 -print -delete
+          echo "🧹 Limpando CSV antigos com mais de 5 dias em data/ajustes/**"
+          find data/ajustes -type f -name "*.csv" -mtime +5 -print -delete || true
 
+      - name: Verificar arquivos gerados
+        run: |
+          echo "📁 Conteúdo de data/ajustes/:"
+          ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
+          echo "📁 Conteúdo de data/ajustes/b3/:"
+          ls -la data/ajustes/b3/ || echo "Pasta data/ajustes/b3/ não existe"
+          echo "📁 Conteúdo de data/ajustes/anbima/:"
+          ls -la data/ajustes/anbima/ || echo "Pasta data/ajustes/anbima/ não existe"
+
+      - name: Pull com rebase (evitar conflitos)
+        run: git pull --rebase || true
+
+      # ⚠️ NADA de `git config` aqui. Apenas add/commit/push.
       - name: Commit e push dos arquivos atualizados
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          git add data/
-          git commit -m "Atualização diária - $(date +'%Y-%m-%d')" || echo "Sem mudanças para commitar"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "📝 Preparando commit..."
+          git add -A
+          git status
+          git commit -m "Atualizar dados de ajustes - $(date '+%Y-%m-%d')" || echo "Nenhuma mudança para commit"
+          git push || echo "Nenhuma mudança para push"
