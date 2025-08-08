@@ -15,8 +15,20 @@ jobs:
       image: bpferreira/ajustes:v1
 
     steps:
-      - name: Checkout do repositório
+      - name: Checkout do repositório (forçar versão mais recente)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Força fetch completo para evitar cache
+
+      - name: Verificar versão atual (sem cache)
+        run: |
+          echo "🔍 VERIFICAÇÃO DE CACHE:"
+          echo "📅 Data/hora: $(date)"
+          echo "📋 Último commit: $(git log -1 --oneline)"
+          echo "📋 Commit hash: $(git rev-parse HEAD)"
+          echo "📁 Conteúdo do workflow atual:"
+          cat .github/workflows/ajustes.yml | head -10
+          echo "✅ Verificação de cache concluída"
 
       # >>> PASSO CRÍTICO: configurar Git FORA do repo e marcar safe.directory no SYSTEM
       - name: Fix Git ownership (system-level safe.directory)
