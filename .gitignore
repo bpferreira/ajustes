@@ -1,10 +1,9 @@
-# Ignora dados de ajustes (B3, ANBIMA, etc.)
+# Ignora dados de ajustes (B3, ANBIMA, etc.), exceto os explicitamente liberados abaixo
 data/ajustes/*.xls
 data/ajustes/*.xlsx
 data/ajustes/anbima/anbima_raw.xls
 
 # Arquivos temporários e de backup
-*.xlsx
 *.Rhistory
 *.RData
 *.Rproj.user
@@ -19,7 +18,6 @@ output/
 
 # --- EXCEÇÕES: devem vir por último para ter efeito ---
 !data/ajustes/.gitkeep
-!data/ajustes/*.csv
-!data/ajustes/anbima/*.csv
-!data/ajustes/b3/*.csv
-!data/ajustes/anbima/anbima_raw.xls
+!data/ajustes/**/*.csv
+!data/ajustes/**/*.xls
+!data/ajustes/**/*.xlsx
