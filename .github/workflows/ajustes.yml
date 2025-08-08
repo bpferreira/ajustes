@@ -1,12 +1,15 @@
-name: Ajustes Diário
+name: Ajustes Diário (debug)
 
 on:
-  schedule:
-    - cron: "30 8 * * 1-5"  # 05:30 BRT (08:30 UTC), dias úteis
   workflow_dispatch:
 
 permissions:
   contents: write
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ${{ github.workspace }}
 
 jobs:
   baixar-ajustes:
@@ -18,77 +21,81 @@ jobs:
       - name: Checkout do repositório
         uses: actions/checkout@v4
 
-      # >>> PASSO CRÍTICO: configurar Git FORA do repo e marcar safe.directory no SYSTEM
       - name: Fix Git ownership (system-level safe.directory)
         working-directory: /
         run: |
-          echo "Workspace: $GITHUB_WORKSPACE"
           git config --system --add safe.directory '*'
           git config --system --add safe.directory "$GITHUB_WORKSPACE"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --global user.name  "GitHub Action"
           git config --global user.email "action@github.com"
-          echo "--- git config (origens) ---"
-          git config --list --show-origin | grep -E 'safe\.directory|user\.name|user\.email' || true
-          echo "✅ Git configurado fora do repositório"
 
-      - name: Verificar estrutura inicial
+      - name: Echo env e diretórios
         run: |
-          echo "📁 Estrutura inicial:"
-          ls -la
-          echo "📁 Conteúdo de data/:"
-          ls -la data/ || echo "Pasta data/ não existe"
-          echo "📁 Conteúdo de data/ajustes/:"
-          ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          echo "PWD (bash)="; pwd
+          echo "Listando raiz do repo:"; ls -la
+          echo "R getwd():"; Rscript -e 'cat(getwd(), "\n")'
 
-      - name: Rodar baixar_b3.R com retry
+      - name: Garantir pastas de saída
         run: |
-          set -e
-          for i in {1..5}; do
-            echo "Tentativa {$i} para baixar B3..."
-            if Rscript R/baixar_b3.R; then
-              echo "✅ baixar_b3.R concluído"
-              break
-            fi
-            echo "❌ Falha. Aguardando e tentando novamente..."
-            sleep 10
-          done
+          mkdir -p data/ajustes/b3
+          mkdir -p data/ajustes/anbima
+          ls -la data/ajustes || true
 
-      - name: Rodar baixar_anbima.R com retry
+      # Instalar pacotes mínimos para conversão CSV -> XLSX no próprio workflow
+      - name: Instalar pacotes para conversão (writexl, readr)
         run: |
-          set -e
-          for i in {1..5}; do
-            echo "Tentativa {$i} para baixar ANBIMA..."
-            if Rscript R/baixar_anbima.R; then
-              echo "✅ baixar_anbima.R concluído"
-              break
-            fi
-            echo "❌ Falha. Aguardando e tentando novamente..."
-            sleep 10
-          done
+          Rscript -e 'pkgs <- c("writexl","readr"); \
+                      ins <- setdiff(pkgs, rownames(installed.packages())); \
+                      if(length(ins)) install.packages(ins, repos="https://cloud.r-project.org")'
 
-      - name: Limpar arquivos antigos (+5 dias)
+      - name: Rodar baixar_b3.R (forçando wd)
         run: |
-          echo "🧹 Limpando CSV antigos com mais de 5 dias em data/ajustes/**"
-          find data/ajustes -type f -name "*.csv" -mtime +5 -print -delete || true
+          echo "R getwd() antes do script:"; Rscript -e 'cat(getwd(), "\n")'
+          Rscript -e 'setwd(Sys.getenv("GITHUB_WORKSPACE")); source("R/baixar_b3.R")'
+          echo "📂 Após baixar_b3.R, conteúdo data/ajustes/b3:"; ls -la data/ajustes/b3 || true
+          test -n "$(ls -1 data/ajustes/b3/*.csv 2>/dev/null)" || (echo "❌ CSV da B3 não gerado" && exit 1)
 
-      - name: Verificar arquivos gerados
+      - name: Rodar baixar_anbima.R (forçando wd)
         run: |
-          echo "📁 Conteúdo de data/ajustes/:"
-          ls -la data/ajustes/ || echo "Pasta data/ajustes/ não existe"
-          echo "📁 Conteúdo de data/ajustes/b3/:"
-          ls -la data/ajustes/b3/ || echo "Pasta data/ajustes/b3/ não existe"
-          echo "📁 Conteúdo de data/ajustes/anbima/:"
-          ls -la data/ajustes/anbima/ || echo "Pasta data/ajustes/anbima/ não existe"
+          echo "R getwd() antes do script:"; Rscript -e 'cat(getwd(), "\n")'
+          Rscript -e 'setwd(Sys.getenv("GITHUB_WORKSPACE")); source("R/baixar_anbima.R")'
+          echo "📂 Após baixar_anbima.R, conteúdo data/ajustes/anbima:"; ls -la data/ajustes/anbima || true
+          test -n "$(ls -1 data/ajustes/anbima/*.csv 2>/dev/null)" || (echo "❌ CSV da ANBIMA não gerado" && exit 1)
 
-      - name: Pull com rebase (evitar conflitos)
-        run: git pull --rebase || true
+      # 👇 CONVERSÃO UNIVERSAL: transforma todos CSVs em XLSX (mantém nome base)
+      - name: Converter todos CSVs para XLSX (fallback)
+        run: |
+          Rscript -e 'suppressPackageStartupMessages({library(writexl); library(readr)}) ; \
+                      csvs <- list.files("data/ajustes", pattern="\\.csv$", recursive=TRUE, full.names=TRUE); \
+                      if(length(csvs)==0) { cat("⚠️ Nenhum CSV encontrado para converter\n"); quit(status=0) } ; \
+                      for (f in csvs) { \
+                        # tenta ler como pt-BR; se falhar, tenta padrão
+                        ok <- FALSE ; df <- NULL ; \
+                        try({ df <- read.csv2(f, check.names=FALSE); ok <- TRUE }, silent=TRUE); \
+                        if(!ok) try({ df <- readr::read_csv(f, show_col_types=FALSE) ; ok <- TRUE }, silent=TRUE) ; \
+                        if(!ok || is.null(df)) { cat("❌ Falha ao ler CSV:", f, "\n"); next } ; \
+                        out <- sub("\\\\.csv$", ".xlsx", f, ignore.case=TRUE) ; \
+                        writexl::write_xlsx(df, out) ; \
+                        cat("✅ XLSX criado:", out, "exists=", file.exists(out), "\n") \
+                      }'
+          echo "📂 Verificando XLSX gerados:"
+          find data/ajustes -type f -name "*.xlsx" -printf '%p\n' | sort || true
+          test -n "$(find data/ajustes -type f -name "*.xlsx" -print -quit)" || (echo "❌ Nenhum XLSX gerado a partir dos CSVs" && exit 1)
 
-      # ⚠️ NADA de `git config` aqui. Apenas add/commit/push.
+      - name: Varredura — procurar arquivos gerados no workspace
+        run: |
+          echo "🔎 Procurando .csv/.xls/.xlsx no workspace..."
+          find "$GITHUB_WORKSPACE" -type f \( -name "*.csv" -o -name "*.xls" -o -name "*.xlsx" \) -printf '%TY-%Tm-%Td %TT %p\n' | sort || true
+
+      - name: Status do repo (antes do commit)
+        run: git status
+
       - name: Commit e push dos arquivos atualizados
         run: |
           echo "📝 Preparando commit..."
-          git add -A
+          git add -f data/ajustes/**/*.csv data/ajustes/**/*.xlsx data/ajustes/**/*.xls || true
           git status
-          git commit -m "Atualizar dados de ajustes - $(date '+%Y-%m-%d')" || echo "Nenhuma mudança para commit"
+          git commit -m "Atualizar ajustes B3/ANBIMA - $(date '+%Y-%m-%d %H:%M:%S')" || echo "Nenhuma mudança para commit"
           git push || echo "Nenhuma mudança para push"
