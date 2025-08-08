@@ -1,23 +1,22 @@
-# Ignora dados de ajustes (B3, ANBIMA, etc.), exceto os explicitamente liberados abaixo
-data/ajustes/*.xls
-data/ajustes/*.xlsx
-data/ajustes/anbima/anbima_raw.xls
-
 # Arquivos temporários e de backup
 *.Rhistory
 *.RData
 *.Rproj.user
+*.tmp
+*.bak
 
-# Ignora logs e cache
+# Logs e cache
 *.log
 .cache/
 __pycache__/
+*.pyc
 
-# Ignora outputs locais
+# Saídas locais que não vão pro Git
 output/
 
-# --- EXCEÇÕES: devem vir por último para ter efeito ---
+# --- Ajustes: ignore tudo em data/ajustes, exceto o que queremos versionar ---
+data/ajustes/*
 !data/ajustes/.gitkeep
 !data/ajustes/**/*.csv
-!data/ajustes/**/*.xls
 !data/ajustes/**/*.xlsx
+!data/ajustes/**/*.xls
