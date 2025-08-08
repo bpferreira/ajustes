@@ -1,0 +1,24 @@
+Títulos Públicos Federais,...2,...3,...4,...5,...6,...7,...8,...9,...10,07/Ago/2025
+NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+Papel PREFIXADO,NA,NTN-F - Taxa (% a.a.)/252,NA,NA,NA,NA,NA,NA,NA,NA
+Código SELIC,Data Base/Emissão,Data de Vencimento,Tx. Compra,Tx. Venda,Tx. Indicativas,PU,Intervalo Indicativo,NA,NA,NA
+NA,NA,NA,NA,NA,NA,NA,Mínimo (D0),Máximo (D0),Mínimo (D+1),Máximo (D+1)
+950199,42384,46388,14.034000000000001,14.014799999999999,14.023400000000001,962.81553299999996,13.6639,14.5124,13.595800000000001,14.443099999999999
+950199,43105,47119,13.413600000000001,13.396599999999999,13.404,925.345417,13.0267,14.017300000000001,12.9298,13.9207
+950199,43840,47849,13.698700000000001,13.6869,13.692600000000001,880.83335099999999,13.363,14.317,13.248900000000001,14.203099999999999
+950199,44568,48580,13.744999999999999,13.725,13.734999999999999,849.30994299999998,13.392200000000001,14.356299999999999,13.289300000000001,14.2537
+950199,45296,49310,13.845000000000001,13.828799999999999,13.8378,822.404042,13.492000000000001,14.450100000000001,13.395,14.353300000000001
+NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+Resumo da Metodologia para o Cálculo das Taxas Médias,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+"- A metodologia para a apuração das taxas médias tem por objetivo eliminar observações que, possivelmente, estejam erradas e que contaminem o cálculo da média.",NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+- Três taxas são requisitadas às instituições pertencentes à amostra:,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+     *     A taxa máxima que corresponde à maior taxa de compra observada para o vencimento;,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+     *     A taxa mínima que corresponde à menor taxa de venda observada para o vencimento;,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+"     *     Taxas Indicativas, que correspondem às taxas avaliadas pela instituição, como referência de preço justo de negócio para cada vencimento, de acordo com suas curvas individuais, no dia de referência.",NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+"- Os dados fornecidos pelas instituições geram dois filtros, que estabelecem intervalos dentro dos quais as informações fornecidas devem estar contidas. Aquelas que estiverem fora dos intervalos são eliminadas e não entram no cômputo das médias.",NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+"- Caso o número de informações restantes, após a aplicação dos critérios acima descritos, não permitir a divulgação de taxas para alguns vencimentos, decidiu-se interpolar a série, utilizando-se para isso o método Cubic Spline, com exceção da LFT que adota o método exponencial.",NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+- A íntegra da metodologia pode ser obtida junto à Superintendência Técnica ou nos sites da ANBIMA na RTM ou na Internet.,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+"ANBIMA: Sede: Praia de Botafogo, 501, bloco II, conj. 704 - Botafogo - Rio de Janeiro - RJ - CEP: 22250-042 - Tel.(21) 3814-3800;  e Av. Nações Unidas, 8501 - 11º e 21º andares - Conj.A - Pinheiros - SP - CEP: 05425-070 - Tel.(11) 3471-5200.",NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+ENDEREÇO NA INTERNET:  www.anbima.com.br,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
